@@ -1,0 +1,48 @@
+# Build directories
+build/
+out/
+cmake-build-*/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Compiled object files
+*.o
+*.obj
+*.exe
+*.out
+*.app
+
+# Compiled shaders (remove these lines if you want to track compiled SPIR-V)
+*.spv
+
+# vcpkg
+vcpkg_installed/
+.vcpkg-root
+
+# IDE / editor files
+.vs/
+.vscode/
+*.user
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Dependency directories (if using submodules or fetched deps locally instead of vcpkg)
+external/
+third_party/build/
