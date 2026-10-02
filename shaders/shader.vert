@@ -41,7 +41,7 @@ void main()
 		weights.z * jointMatrices[int(joints.z)] +
 		weights.w * jointMatrices[int(joints.w)];
 
-    vec4 worldPosition = model * pushConstants1.matrix * vec4(aPos, 1.0);
+    vec4 worldPosition = model * pushConstants1.matrix * skinMat * vec4(aPos, 1.0);
 
     worldPos = worldPosition.xyz;
     gl_Position = projection * view * worldPosition;

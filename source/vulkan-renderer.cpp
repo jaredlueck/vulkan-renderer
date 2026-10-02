@@ -216,7 +216,7 @@ int main()
         lastTime = currentTime;
 
         dragon.setPipeline(&pipeline);
-        //dragon.updateAnimations(deltaTime, currentBuffer);
+        dragon.updateAnimations(deltaTime, currentBuffer);
 
         dragon.draw(&commandBuffer);
 
