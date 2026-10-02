@@ -46,3 +46,6 @@ Thumbs.db
 # Dependency directories (if using submodules or fetched deps locally instead of vcpkg)
 external/
 third_party/build/
+
+vulkan-renderer/
+x64/
