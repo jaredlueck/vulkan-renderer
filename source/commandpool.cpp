@@ -3,7 +3,8 @@
 #include "commandbuffer.h"
 #include "device.h"
 
-CommandPool::CommandPool(Device* device, uint32_t queueFamilyIndex) : device(device) {
+CommandPool::CommandPool(Device* device, uint32_t queueFamilyIndex) : device(device) 
+{
 	VkCommandPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	poolInfo.queueFamilyIndex = queueFamilyIndex;
@@ -11,6 +12,12 @@ CommandPool::CommandPool(Device* device, uint32_t queueFamilyIndex) : device(dev
 	VkCall(vkCreateCommandPool(device->getHandle(), &poolInfo, nullptr, &commandPool));
 }
 
-CommandBuffer* CommandPool::allocateCommandBuffer() {
+CommandBuffer* CommandPool::allocateCommandBuffer()
+{
 	return new CommandBuffer(device->getHandle(), commandPool);
+}
+
+VkCommandPool CommandPool::getHandle()
+{
+	return commandPool;
 }

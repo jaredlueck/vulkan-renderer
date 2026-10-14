@@ -5,6 +5,8 @@
 #include "commandbuffer.h"
 #include <glm/gtc/type_ptr.hpp>
 #include "renderpipeline.h"
+#include "stbimage/stb_image.h"
+#include "texture.h"
 
 glm::mat4 Node::getLocalMatrix() 
 {
@@ -12,9 +14,10 @@ glm::mat4 Node::getLocalMatrix()
     return glm::translate(glm::mat4(1.0), translation) * glm::mat4(rotation) * glm::scale(glm::mat4(1.0), scale) * matrix;
 }
 
-Model::Model(Device* device, const char* path, RenderPipeline* pipeline) 
+Model::Model(Device* device, const char* path, RenderPipeline* pipeline, CommandBuffer* commandBuffer) 
     : mDevice(device) , 
-      pipeline(pipeline)
+      pipeline(pipeline),
+      path(path)
 {
     tg3_parse_options opts;
     tg3_error_stack errors;
@@ -44,16 +47,14 @@ Model::Model(Device* device, const char* path, RenderPipeline* pipeline)
         tg3_node node = model.nodes[scene.nodes[i]];
         loadNode(node, &model, nullptr, 0);
     }
+    
+    loadTextures(&model, commandBuffer);
+    loadMaterials(&model, commandBuffer);
     loadSkins(&model);
     loadAnimations(&model);
     updateJoints(nodes[0]);
     tg3_model_free(&model);
     tg3_error_stack_free(&errors);
-}
-
-void Model::loadMaterials(tg3_model* data)
-{
-
 }
 
 void Model::loadNode(tg3_node inputNode, tg3_model* data, Node* parent, uint32_t nodeIndex) 
@@ -118,6 +119,8 @@ void Model::loadNode(tg3_node inputNode, tg3_model* data, Node* parent, uint32_t
             tg3_buffer_view view = data->buffer_views[accessor.buffer_view];
 
             primitive.indexStart = view.byte_offset + accessor.byte_offset;
+
+            primitive.materialIndex = glTFPrimitive.material;
 
             for (int j = 0; j < glTFPrimitive.attributes_count; j++) 
             {
@@ -193,21 +196,47 @@ void Model::traverse(CommandBuffer* commandBuffer, Node* node, glm::mat4 parentM
 void Model::drawNode(CommandBuffer* commandBuffer, Node* node, glm::mat4 transform){
    
     Mesh mesh = node->mesh;
+
     if (node->skin > -1)
     {
         Skin& skin = skins[node->skin];
 
         VkDescriptorSet descriptorSet = pipeline->objectDataDescriptorSets[currentBuffer];
-        
+
         // Bind the descriptor set that references the shader storage buffer containing the joint matrices
         vkCmdBindDescriptorSets(commandBuffer->getHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipeline->getLayout(), 1, 1, &descriptorSet, 0, nullptr);
     }
 
     for (int i = 0; i < mesh.primitives.size(); i++) {
+        Primitive primitive = mesh.primitives[i];
+        
+        // Update and bind the material for this primitive
+        uint32_t materialIndex = primitive.materialIndex;
+        Texture* baseColorTexture = textures[materials[materialIndex].baseColorTextureIndex];
+        VkDescriptorImageInfo imageInfo
+        {
+            .sampler = sampler,
+            .imageView = baseColorTexture->imageView,
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        };
+
+        VkWriteDescriptorSet writeDescriptorSet
+        {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = pipeline->diffuseTexDescriptorSet,
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &imageInfo
+        };
+
+        vkUpdateDescriptorSets(mDevice->getHandle(), 1, &writeDescriptorSet, 0, nullptr);
+
+        vkCmdBindDescriptorSets(commandBuffer->getHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipeline->getLayout(), 2, 1, &pipeline->diffuseTexDescriptorSet, 0, nullptr);
+
         glm::mat4 model = transform * getNodeMatrix(node);
         vkCmdPushConstants(commandBuffer->getHandle(), this->pipeline->getLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &transform[0]);
-        
-        Primitive primitive = mesh.primitives[i];
+
         vkCmdBindIndexBuffer(commandBuffer->getHandle(), mBuffer->getHandle(), primitive.indexStart, VK_INDEX_TYPE_UINT16);
         
         VkDeviceSize offsets[5] = { primitive.vertexStart, primitive.normalStart, primitive.texCoordStart, primitive.weightsStart, primitive.jointsStart };
@@ -480,6 +509,53 @@ void Model::loadAnimations(tg3_model* model) {
                 }
             }
         }
+    }
+}
+
+void Model::loadMaterials(tg3_model* model, CommandBuffer* commandBuffer)
+{
+    tg3_sampler tg3Sampler = model->samplers[0];
+    VkSamplerCreateInfo samplerCreateInfo
+    {
+        .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .magFilter = VK_FILTER_LINEAR,
+        .minFilter = VK_FILTER_LINEAR,
+    };
+    vkCreateSampler(mDevice->getHandle(), &samplerCreateInfo, nullptr, &sampler);
+    materials.resize(model->materials_count);
+    for (size_t i = 0; i < model->materials_count; i++)
+    {
+        tg3_material mat = model->materials[i];
+        tg3_pbr_metallic_roughness pbr = mat.pbr_metallic_roughness;
+        tg3_texture_info baseColorTextureIndo = pbr.base_color_texture;
+
+        tg3_normal_texture_info normalTextureInfo = mat.normal_texture;
+        tg3_occlusion_texture_info occlusionTexture = mat.occlusion_texture;
+
+        tg3_texture baseTexture = model->textures[baseColorTextureIndo.index];
+        tg3_texture normalTexture = model->textures[normalTextureInfo.index];
+
+        tg3_sampler sampler = model->samplers[baseTexture.sampler];
+
+        //Texture base = textures[baseColorTextureIndo.index];
+        //Texture normal = textures[normalTextureInfo.index];
+
+        materials[i].baseColorTextureIndex = baseColorTextureIndo.index;
+        materials[i].normalMapTextureIndex = normalTextureInfo.index;
+    }
+}
+
+void Model::loadTextures(tg3_model* model, CommandBuffer* commandBuffer)
+{
+    for (size_t i = 0; i < model->textures_count; i++)
+    {
+        tg3_texture tg3Texture = model->textures[i];
+        tg3_image image = model->images[tg3Texture.source];
+        std::string imageRelativePath(image.uri.data);
+        std::string fullPath = "./assets/dragon2/" + imageRelativePath;
+
+        Texture* texture = new Texture(fullPath.c_str(), mDevice, commandBuffer);
+        textures.push_back(texture);        
     }
 }
 

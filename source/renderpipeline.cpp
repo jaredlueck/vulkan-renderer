@@ -60,7 +60,7 @@ RenderPipeline::RenderPipeline(ShaderModule* vertexShader, ShaderModule* fragmen
 
 	vkCreateDescriptorSetLayout(device->getHandle(), &objectDataLayoutCreateInfo, nullptr, &objectDataLayout);
 
-	VkDescriptorPoolSize poolSizes[2] = {
+	VkDescriptorPoolSize poolSizes[3] = {
 		{
 			.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 			.descriptorCount = 1
@@ -68,6 +68,10 @@ RenderPipeline::RenderPipeline(ShaderModule* vertexShader, ShaderModule* fragmen
 		{
 			.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			.descriptorCount = 3
+		},
+		{
+			.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			.descriptorCount = 1
 		}
 	};
 
@@ -75,14 +79,12 @@ RenderPipeline::RenderPipeline(ShaderModule* vertexShader, ShaderModule* fragmen
 	{
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 		.maxSets = 10,
-		.poolSizeCount = 2,
+		.poolSizeCount = 3,
 		.pPoolSizes = &poolSizes[0]
 	};
 
 	VkDescriptorPool descriptorPool;
 	VkCall(vkCreateDescriptorPool(device->getHandle(), &descriptorPoolCreateInfo, nullptr, &descriptorPool));
-
-	VkDescriptorSetLayout layouts[2] = { frameDataLayout, objectDataLayout };
 	
 	VkDescriptorSetAllocateInfo frameDataDescriptorSetAllocateInfo
 	{
@@ -91,8 +93,6 @@ RenderPipeline::RenderPipeline(ShaderModule* vertexShader, ShaderModule* fragmen
 		.descriptorSetCount = 1,
 		.pSetLayouts = &frameDataLayout
 	};
-
-	//descriptorSets.resize(2);
 
 	VkCall(vkAllocateDescriptorSets(device->getHandle(), &frameDataDescriptorSetAllocateInfo, &framedataDescriptorSet));
 
@@ -108,6 +108,37 @@ RenderPipeline::RenderPipeline(ShaderModule* vertexShader, ShaderModule* fragmen
 	
 	objectDataDescriptorSets.resize(3);
 	VkCall(vkAllocateDescriptorSets(device->getHandle(), &objectDataDescriptorSetAllocateInfo, &objectDataDescriptorSets[0]));
+
+	VkDescriptorSetLayoutBinding diffuseTexBinding
+	{
+		.binding = 0,
+		.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		.descriptorCount = 1,
+		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+	};
+
+	VkDescriptorSetLayout diffuseTexLayout;
+
+	VkDescriptorSetLayoutCreateInfo diffuseTexLayoutInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+		.bindingCount = 1,
+		.pBindings = &diffuseTexBinding,
+	};
+
+	VkCall(vkCreateDescriptorSetLayout(device->getHandle(), &diffuseTexLayoutInfo, nullptr, &diffuseTexLayout));
+
+	VkDescriptorSetAllocateInfo diffuseTexDescriptorSetAllocateInfo
+	{
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+		.descriptorPool = descriptorPool,
+		.descriptorSetCount = 1,
+		.pSetLayouts = &diffuseTexLayout
+	};
+
+	VkCall(vkAllocateDescriptorSets(device->getHandle(), &diffuseTexDescriptorSetAllocateInfo, &diffuseTexDescriptorSet));
+	
+	VkDescriptorSetLayout layouts[3] = { frameDataLayout, objectDataLayout, diffuseTexLayout };
 
 	// Initialize shader stages
 	VkPipelineShaderStageCreateInfo shaderStages[2] = {};
@@ -205,7 +236,7 @@ RenderPipeline::RenderPipeline(ShaderModule* vertexShader, ShaderModule* fragmen
 	
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 2;
+	pipelineLayoutInfo.setLayoutCount = 3;
 	pipelineLayoutInfo.pSetLayouts = &layouts[0];
 	pipelineLayoutInfo.pushConstantRangeCount = 1;
 	pipelineLayoutInfo.pPushConstantRanges = &pushConstant;

@@ -37,3 +37,8 @@ void Queue::present(VkSemaphore* renderFinishedSemaphore, VkSwapchainKHR swapcha
 
     VkCall(vkQueuePresentKHR(queue, &presentInfo));
 }
+
+VkQueue Queue::getHandle()
+{
+    return queue;
+}

@@ -8,6 +8,8 @@ class Device;
 class CommandBuffer;
 class Buffer;
 class RenderPipeline;
+class CommandBuffer;
+class Texture;
 
 struct Primitive {
 	uint64_t indexStart;
@@ -17,6 +19,7 @@ struct Primitive {
 	uint64_t texCoordStart;
 	uint64_t jointsStart;
 	uint64_t weightsStart;
+	uint64_t materialIndex;
 };
 
 struct Mesh {
@@ -77,9 +80,15 @@ struct Skin {
 	VkDescriptorSet        descriptorSet;
 };
 
+struct Material
+{
+	uint32_t baseColorTextureIndex;
+	uint32_t normalMapTextureIndex;
+};
+
 class Model {
 public:
-	Model(Device* device, const char* path, RenderPipeline* pipeline);
+	Model(Device* device, const char* path, RenderPipeline* pipeline, CommandBuffer* commandBuffer);
 	void setPipeline(RenderPipeline* pipeline);
 	Device* mDevice;
 	Buffer* mBuffer;
@@ -95,13 +104,18 @@ private:
 	Node* getNodeFromIndex(int index);
 	void loadAnimations(tg3_model* model);
 	void loadSkins(tg3_model* model);
-	void loadMaterials(tg3_model* model);
+	void loadMaterials(tg3_model* model, CommandBuffer* commandBuffer);
+	void loadTextures(tg3_model* model, CommandBuffer* commandBuffer);
 	glm::mat4 getNodeMatrix(Node* node);
 	Node* findNode(Node* node, int index);
 	Node* root;
 	std::vector<Animation> animations;
 	std::vector<Skin> skins;
 	std::vector<Node*> nodes;
+	std::vector<Texture*> textures;
 	RenderPipeline* pipeline;
 	uint32_t currentBuffer;
+	std::string path;
+	std::vector<Material> materials;
+	VkSampler sampler;
 };

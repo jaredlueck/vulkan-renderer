@@ -160,8 +160,10 @@
     <ClCompile Include="source\swapchain.cpp" />
     <ClCompile Include="external\tinygltf\tiny_gltf_v3.c" />
     <ClCompile Include="source\vulkan-renderer.cpp" />
+    <ClCompile Include="source\texture.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="external\stbimage\stb_image.h" />
     <ClInclude Include="source\buffer.h" />
     <ClInclude Include="source\commandbuffer.h" />
     <ClInclude Include="source\commandpool.h" />
@@ -181,6 +183,7 @@
     <ClInclude Include="external\tinygltf\tinygltf_json_c.h" />
     <ClInclude Include="external\tinygltf\tiny_gltf_v3.h" />
     <ClInclude Include="source\utils.h" />
+    <ClInclude Include="source\texture.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

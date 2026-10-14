@@ -69,6 +69,9 @@
     <ClCompile Include="source\model.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="source\texture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\renderpass.h">
@@ -128,8 +131,11 @@
     <ClInclude Include="source\model.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="CMakeLists.txt" />
+    <ClInclude Include="external\stbimage\stb_image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\texture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

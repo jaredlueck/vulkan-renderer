@@ -23,6 +23,7 @@ public:
 	void bind(CommandBuffer* commandBuffer);
 	VkDescriptorSet framedataDescriptorSet;
 	std::vector<VkDescriptorSet> objectDataDescriptorSets;
+	VkDescriptorSet diffuseTexDescriptorSet;
 private:
 	VkPipeline graphicsPipeline{};
 	VkPipelineLayout pipelineLayout{};

@@ -21,6 +21,8 @@
 #include "tinygltf/tiny_gltf_v3.h"
 #include "model.h"
 #include <chrono>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stbimage/stb_image.h"
 
 void window_size_callback(GLFWwindow* window, int width, int height);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
@@ -85,7 +87,7 @@ int main()
 	swapchain->createFramebuffers(&renderPass);
 
 	CommandPool commandPool(&device, physicalDevice.getGraphicsQueueFamilyIndex());
-	CommandBuffer commandBuffer = *commandPool.allocateCommandBuffer();
+
 
     VkSemaphore imageAvailableSemaphore;
     VkSemaphore renderFinishedSemaphore;
@@ -110,9 +112,20 @@ int main()
     tg3_parse_options_init(&opts);
     tg3_error_stack_init(&errors);
 
+    Queue* graphicsQueue = device.getGraphicsQueue(0);
+
     const char* filename2 = "./assets/dragon2/dragon.gltf";
+
+    // Command Buffer used for encoding initial asset setup
+    CommandBuffer* copyCmd = commandPool.allocateCommandBuffer();
+    copyCmd->begin();
     
-    Model dragon(&device, filename2, &pipeline);
+    Model dragon(&device, filename2, &pipeline, copyCmd);
+
+    device.flushCommandBuffer(copyCmd, graphicsQueue, &commandPool);
+
+    CommandBuffer commandBuffer = *commandPool.allocateCommandBuffer();
+    commandBuffer.begin();
 
     VkImageCreateInfo depthAttachmentInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -182,7 +195,7 @@ int main()
 
         glm::vec3 cameraPos(0.0, 0.0, -50.0);
 
-        FrameData framedata{
+        FrameData framedata {
             .model = modelMatrix,
             .view = matrix::lookAt(cameraPos, glm::vec3(0.0), glm::vec3(0.0, 1.0, 0.0)),
             .projection = matrix::perspective(0.1, 100.0, 65, aspectRatio),
@@ -225,8 +238,6 @@ int main()
         renderPass.end(&commandBuffer);
         
         commandBuffer.end();
-
-        Queue* graphicsQueue = device.getGraphicsQueue(0);
 
         if (!releaseSemaphores[imageIndex]) {
 			releaseSemaphores[imageIndex] = device.createSemaphore(&semaphoreInfo);
