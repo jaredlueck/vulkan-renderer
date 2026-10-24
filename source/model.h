@@ -3,6 +3,7 @@
 #include "tinygltf/tiny_gltf_v3.h"
 #include <vulkan/vulkan.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include "MikkTSpace/mikktspace.h"
 
 class Device;
 class CommandBuffer;
@@ -10,6 +11,16 @@ class Buffer;
 class RenderPipeline;
 class CommandBuffer;
 class Texture;
+
+struct Vertex
+{
+	glm::vec3 position;
+	glm::vec3 normal;
+	glm::vec4 tangent;
+	glm::vec2 texCoord;
+	glm::vec4 weights;
+	glm::u8vec4 joints;
+};
 
 struct Primitive {
 	uint64_t indexStart;
@@ -20,6 +31,18 @@ struct Primitive {
 	uint64_t jointsStart;
 	uint64_t weightsStart;
 	uint64_t materialIndex;
+
+	std::vector<Vertex> vertices;
+	
+	Buffer* buffer;
+	
+	// functions needed for MikkTSpace to compute tangents
+	static int getNumFaces(const SMikkTSpaceContext* pContext);
+	static int getNumVerticesOfFace(const SMikkTSpaceContext* pContext, const int iFace);
+	static void getPosition(const SMikkTSpaceContext* pContext, float fvPosOut[], const int iFace, const int iVert);
+	static void getNormal(const SMikkTSpaceContext* pContext, float fvNormOut[], const int iFace, const int iVert);
+	static void getTexCoord(const SMikkTSpaceContext* pContext, float fvTexcOut[], const int iFace, const int iVert);
+	static void setTangent(const SMikkTSpaceContext* pContext, const float fvTangent[], const float fSign, const int iFace, const int iVert);
 };
 
 struct Mesh {
@@ -84,6 +107,9 @@ struct Material
 {
 	uint32_t baseColorTextureIndex;
 	uint32_t normalMapTextureIndex;
+	glm::vec4 baseColorFactor = glm::vec4(1.0f);
+	glm::vec4 roughnessFactor = glm::vec4(1.0f);
+	glm::vec4 metallicFactor = glm::vec4(1.0f);
 };
 
 class Model {

@@ -143,10 +143,11 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="external\MikkTSpace\mikktspace.c" />
+    <ClCompile Include="external\Welder\weldmesh.c" />
     <ClCompile Include="source\buffer.cpp" />
     <ClCompile Include="source\commandbuffer.cpp" />
     <ClCompile Include="source\commandpool.cpp" />
-    <ClCompile Include="source\cube.cpp" />
     <ClCompile Include="source\device.cpp" />
     <ClCompile Include="source\framebuffer.cpp" />
     <ClCompile Include="source\instance.cpp" />
@@ -163,11 +164,12 @@
     <ClCompile Include="source\texture.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="external\MikkTSpace\mikktspace.h" />
     <ClInclude Include="external\stbimage\stb_image.h" />
+    <ClInclude Include="external\Welder\weldmesh.h" />
     <ClInclude Include="source\buffer.h" />
     <ClInclude Include="source\commandbuffer.h" />
     <ClInclude Include="source\commandpool.h" />
-    <ClInclude Include="source\cube.h" />
     <ClInclude Include="source\device.h" />
     <ClInclude Include="source\framebuffer.h" />
     <ClInclude Include="source\framedata.h" />

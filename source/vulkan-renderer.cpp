@@ -15,7 +15,6 @@
 #include "commandbuffer.h"
 #include "framebuffer.h"
 #include "queue.h"
-#include "cube.h"
 #include "math.h"
 #include "framedata.h"
 #include "tinygltf/tiny_gltf_v3.h"
@@ -87,7 +86,6 @@ int main()
 	swapchain->createFramebuffers(&renderPass);
 
 	CommandPool commandPool(&device, physicalDevice.getGraphicsQueueFamilyIndex());
-
 
     VkSemaphore imageAvailableSemaphore;
     VkSemaphore renderFinishedSemaphore;

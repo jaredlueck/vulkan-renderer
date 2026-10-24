@@ -7,6 +7,66 @@
 #include "renderpipeline.h"
 #include "stbimage/stb_image.h"
 #include "texture.h"
+#include "Welder/weldmesh.h"
+
+int Primitive::getNumFaces(const SMikkTSpaceContext* pContext)
+{
+    // TODO: support other topologies
+    Primitive* primitive = static_cast<Primitive*>(pContext->m_pUserData);
+    // assuming triangles mode where each consecutive set of 3 vertices forms a triangle
+    return primitive->indexCount / 3;
+}
+
+int Primitive::getNumVerticesOfFace(const SMikkTSpaceContext* pContext, const int iFace)
+{
+    // TODO: support quads
+    return 3;
+}
+
+void Primitive::getPosition(const SMikkTSpaceContext* pContext, float fvPosOut[], const int iFace, const int iVert)
+{
+    Primitive* primitive = static_cast<Primitive*>(pContext->m_pUserData);
+    uint32_t vertexIndex = 3 * iFace + iVert;
+
+    glm::vec3 vertexPos = primitive->vertices[vertexIndex].position;
+
+    fvPosOut[0] = vertexPos[0];
+    fvPosOut[1] = vertexPos[1];
+    fvPosOut[2] = vertexPos[2];
+}
+
+void Primitive::getNormal(const SMikkTSpaceContext* pContext, float fvNormOut[], const int iFace, const int iVert)
+{
+    Primitive* primitive = static_cast<Primitive*>(pContext->m_pUserData);
+    uint32_t vertexIndex = 3 * iFace + iVert;
+
+    glm::vec3 normal = primitive->vertices[vertexIndex].normal;
+
+    fvNormOut[0] = normal[0];
+    fvNormOut[1] = normal[1];
+    fvNormOut[2] = normal[2];
+}
+
+void Primitive::getTexCoord(const SMikkTSpaceContext* pContext, float fvTexcOut[], const int iFace, const int iVert)
+{
+    Primitive* primitive = static_cast<Primitive*>(pContext->m_pUserData);
+    // This is the index into the index buffer that in turn gives the index of the vertex
+    uint32_t vertexIndex = 3 * iFace + iVert;
+
+    glm::vec2 texCoord = primitive->vertices[vertexIndex].texCoord;
+
+    fvTexcOut[0] = texCoord[0];
+    fvTexcOut[1] = texCoord[1];
+}
+
+void Primitive::setTangent(const SMikkTSpaceContext* pContext, const float fvTangent[], const float fSign, const int iFace, const int iVert)
+{
+    Primitive* primitive = static_cast<Primitive*>(pContext->m_pUserData);
+    
+    glm::vec4 tangent = glm::vec4(fvTangent[0], fvTangent[1], fvTangent[2], fSign);
+    uint32_t vertexIndex = 3 * iFace + iVert;
+    primitive->vertices[vertexIndex].tangent = tangent;
+}
 
 glm::mat4 Node::getLocalMatrix() 
 {
@@ -58,7 +118,7 @@ Model::Model(Device* device, const char* path, RenderPipeline* pipeline, Command
 }
 
 void Model::loadNode(tg3_node inputNode, tg3_model* data, Node* parent, uint32_t nodeIndex) 
-{
+{   
     Node* node = new Node{};
 
     node->matrix = glm::mat4(1.0);
@@ -66,6 +126,7 @@ void Model::loadNode(tg3_node inputNode, tg3_model* data, Node* parent, uint32_t
     node->index = nodeIndex;
     node->parent = parent;
     node->name = inputNode.name.data;
+
     if (!parent)
     {
         root = node;
@@ -101,8 +162,8 @@ void Model::loadNode(tg3_node inputNode, tg3_model* data, Node* parent, uint32_t
         for (size_t i = 0; i < tg3Mesh.primitives_count; i++)
         {
             Primitive primitive{};
-            tg3_primitive glTFPrimitive = tg3Mesh.primitives[i];
-            uint32_t indices = glTFPrimitive.indices;
+            tg3_primitive gltfPrimitive = tg3Mesh.primitives[i];
+            uint32_t indices = gltfPrimitive.indices;
             tg3_accessor accessor = data->accessors[indices];
 
             // gltf accessor types:
@@ -116,24 +177,30 @@ void Model::loadNode(tg3_node inputNode, tg3_model* data, Node* parent, uint32_t
             // TODO: map these components types to types accepted by the pipeline
 
             primitive.indexCount = accessor.count;
+           
+            int32_t indexType = accessor.component_type;
+            
             tg3_buffer_view view = data->buffer_views[accessor.buffer_view];
+            tg3_buffer buffer = data->buffers[view.buffer];
+
+            uint16_t* indexPtr = (uint16_t*)&buffer.data.data[view.byte_offset + accessor.byte_offset];
 
             primitive.indexStart = view.byte_offset + accessor.byte_offset;
 
-            primitive.materialIndex = glTFPrimitive.material;
+            primitive.materialIndex = gltfPrimitive.material;
 
-            for (int j = 0; j < glTFPrimitive.attributes_count; j++) 
+            for (int j = 0; j < gltfPrimitive.attributes_count; j++)
             {
-                std::string attributeName = glTFPrimitive.attributes[j].key.data;
-                uint32_t attributeVal = glTFPrimitive.attributes[j].value;
+                std::string attributeName = gltfPrimitive.attributes[j].key.data;
+                uint32_t attributeVal = gltfPrimitive.attributes[j].value;
                 tg3_accessor accessor = data->accessors[attributeVal];
                 tg3_buffer_view view = data->buffer_views[accessor.buffer_view];
-                
-                if(attributeName == "POSITION")
+
+                if (attributeName == "POSITION")
                 {
                     primitive.vertexStart = view.byte_offset + accessor.byte_offset;
                 }
-                else if(attributeName == "NORMAL")
+                else if (attributeName == "NORMAL")
                 {
                     primitive.normalStart = view.byte_offset + accessor.byte_offset;
                 }
@@ -141,7 +208,7 @@ void Model::loadNode(tg3_node inputNode, tg3_model* data, Node* parent, uint32_t
                 {
                     primitive.texCoordStart = view.byte_offset + accessor.byte_offset;
                 }
-                else if(attributeName == "JOINTS_0")
+                else if (attributeName == "JOINTS_0")
                 {
                     primitive.jointsStart = view.byte_offset + accessor.byte_offset;
                 }
@@ -149,10 +216,61 @@ void Model::loadNode(tg3_node inputNode, tg3_model* data, Node* parent, uint32_t
                 {
                     primitive.weightsStart = view.byte_offset + accessor.byte_offset;
                 }
+
+                // TODO: support all modes
+                if (gltfPrimitive.mode == 4)
+                {
+
+                }
             }
+
+            // unpack the vertex attributes into an interleaved buffer
+            primitive.vertices.resize(primitive.indexCount);
+
+            glm::vec3* positonPtr = (glm::vec3*) &buffer.data.data[primitive.vertexStart];
+            glm::vec3* normalPtr = (glm::vec3*) &buffer.data.data[primitive.normalStart];
+            glm::vec2* texCoordPtr = (glm::vec2*) &buffer.data.data[primitive.texCoordStart];
+
+            glm::vec4* weightsPtr = (glm::vec4*)&buffer.data.data[primitive.weightsStart];
+            glm::u8vec4* jointsPtr = (glm::u8vec4*) &buffer.data.data[primitive.jointsStart];
+            
+            for (uint32_t i = 0; i < primitive.indexCount; i++)
+            {
+                uint16_t index = indexPtr[i];
+
+                primitive.vertices[i].position = positonPtr[index];
+                primitive.vertices[i].normal = normalPtr[index];
+                primitive.vertices[i].texCoord = texCoordPtr[index];
+
+                primitive.vertices[i].joints = jointsPtr[index];
+                primitive.vertices[i].weights = weightsPtr[index];
+            }
+
+            SMikkTSpaceInterface interface
+            {
+                .m_getNumFaces = primitive.getNumFaces,
+                .m_getNumVerticesOfFace = primitive.getNumVerticesOfFace,
+                .m_getPosition = primitive.getPosition,
+                .m_getNormal = primitive.getNormal,
+                .m_getTexCoord = primitive.getTexCoord,
+                .m_setTSpaceBasic = primitive.setTangent
+            };
+
+            SMikkTSpaceContext context
+            {
+                .m_pInterface = &interface,
+                .m_pUserData = (void*)&primitive
+            };
+            
+            genTangSpaceDefault(&context);
+
+            // TODO: re-index primitive
+            primitive.buffer = mDevice->createBuffer(primitive.vertices.size() * sizeof(Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+            primitive.buffer->copyData(&primitive.vertices[0]);
             node->mesh.primitives.push_back(primitive);
         }
     }
+
     if (parent != nullptr)
     {
         parent->children.push_back(node);
@@ -209,10 +327,14 @@ void Model::drawNode(CommandBuffer* commandBuffer, Node* node, glm::mat4 transfo
 
     for (int i = 0; i < mesh.primitives.size(); i++) {
         Primitive primitive = mesh.primitives[i];
+
+        VkBuffer vertexBuffer = primitive.buffer->getHandle();
+        uint32_t vertexCount = primitive.vertices.size();
         
         // Update and bind the material for this primitive
         uint32_t materialIndex = primitive.materialIndex;
         Texture* baseColorTexture = textures[materials[materialIndex].baseColorTextureIndex];
+        
         VkDescriptorImageInfo imageInfo
         {
             .sampler = sampler,
@@ -231,19 +353,16 @@ void Model::drawNode(CommandBuffer* commandBuffer, Node* node, glm::mat4 transfo
         };
 
         vkUpdateDescriptorSets(mDevice->getHandle(), 1, &writeDescriptorSet, 0, nullptr);
-
         vkCmdBindDescriptorSets(commandBuffer->getHandle(), VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipeline->getLayout(), 2, 1, &pipeline->diffuseTexDescriptorSet, 0, nullptr);
+
+        // update and bind the normal map for this primitive
 
         glm::mat4 model = transform * getNodeMatrix(node);
         vkCmdPushConstants(commandBuffer->getHandle(), this->pipeline->getLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &transform[0]);
+        uint64_t offset = 0;
+        vkCmdBindVertexBuffers(commandBuffer->getHandle(), 0, 1, &vertexBuffer, &offset);
 
-        vkCmdBindIndexBuffer(commandBuffer->getHandle(), mBuffer->getHandle(), primitive.indexStart, VK_INDEX_TYPE_UINT16);
-        
-        VkDeviceSize offsets[5] = { primitive.vertexStart, primitive.normalStart, primitive.texCoordStart, primitive.weightsStart, primitive.jointsStart };
-        VkBuffer buffers[5] = { mBuffer->getHandle(), mBuffer->getHandle(), mBuffer->getHandle(), mBuffer->getHandle(), mBuffer->getHandle() };
-        vkCmdBindVertexBuffers(commandBuffer->getHandle(), 0, 5, &buffers[0], &offsets[0]);
-        
-        vkCmdDrawIndexed(commandBuffer->getHandle(), primitive.indexCount, 1, 0, 0, 0);
+        vkCmdDraw(commandBuffer->getHandle(), vertexCount, 1, 0, 0);
     }
 }
 
@@ -521,8 +640,10 @@ void Model::loadMaterials(tg3_model* model, CommandBuffer* commandBuffer)
         .magFilter = VK_FILTER_LINEAR,
         .minFilter = VK_FILTER_LINEAR,
     };
+
     vkCreateSampler(mDevice->getHandle(), &samplerCreateInfo, nullptr, &sampler);
     materials.resize(model->materials_count);
+
     for (size_t i = 0; i < model->materials_count; i++)
     {
         tg3_material mat = model->materials[i];
@@ -595,5 +716,5 @@ Node* Model::getNodeFromIndex(int index)
 
 void Model::setPipeline(RenderPipeline* pipeline) 
 {
-    this->pipeline = pipeline;
+    this->pipeline = pipeline; 
 }

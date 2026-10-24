@@ -151,7 +151,7 @@ RenderPipeline::RenderPipeline(ShaderModule* vertexShader, ShaderModule* fragmen
 	shaderStages[1].module = fragmentShader->getHandle();
 	shaderStages[1].pName = "main";
 
-	VkVertexInputAttributeDescription attributes[5] = { 
+	VkVertexInputAttributeDescription attributes[6] = { 
 		// position
 		{
 			.location = 0,
@@ -162,30 +162,37 @@ RenderPipeline::RenderPipeline(ShaderModule* vertexShader, ShaderModule* fragmen
 		// normal
 		{
 			.location = 1,
-			.binding = 1,
+			.binding = 0,
 			.format = VK_FORMAT_R32G32B32_SFLOAT,
-			.offset = 0,
+			.offset = 3 * sizeof(float),
+		},
+		// tangent
+		{
+			.location = 2,
+			.binding = 0,
+			.format = VK_FORMAT_R32G32B32A32_SFLOAT,
+			.offset = 6 * sizeof(float),
 		},
 		// texcoord
 		{
-			.location = 2,
-			.binding = 2,
+			.location = 3,
+			.binding = 0,
 			.format = VK_FORMAT_R32G32_SFLOAT,
-			.offset = 0,
+			.offset = 10 * sizeof(float),
 		},
 		// weights
 		{
-			.location = 3,
-			.binding = 3,
+			.location = 4,
+			.binding = 0,
 			.format = VK_FORMAT_R32G32B32A32_SFLOAT,
-			.offset = 0,
+			.offset = 12 * sizeof(float),
 		},
 		// joints
 		{
-			.location = 4,
-			.binding = 4,
+			.location = 5,
+			.binding = 0,
 			.format = VK_FORMAT_R8G8B8A8_UINT,
-			.offset = 0,
+			.offset = 16 * sizeof(float),
 		},
 	};
 
@@ -193,40 +200,16 @@ RenderPipeline::RenderPipeline(ShaderModule* vertexShader, ShaderModule* fragmen
 		// position
 		{
 			.binding = 0,
-			.stride = 3 * sizeof(float),
+			.stride = 16 * sizeof(float) + 4,
 			.inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-		},
-		// normal
-		{
-			.binding = 1,
-			.stride = 3 * sizeof(float),
-			.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-		},
-		// texcoord
-		{
-			.binding = 2,
-			.stride = 2 * sizeof(float),
-			.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-		},
-		// weights
-		{
-			.binding = 3,
-			.stride = 4 * sizeof(float),
-			.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-		},
-		// joints
-		{
-			.binding = 4,
-			.stride = 4,
-			.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
 		}
 	};
 
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 5;
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
 	vertexInputInfo.pVertexBindingDescriptions = &bindings[0];
-	vertexInputInfo.vertexAttributeDescriptionCount = 5;
+	vertexInputInfo.vertexAttributeDescriptionCount = 6;
 	vertexInputInfo.pVertexAttributeDescriptions = &attributes[0];
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
